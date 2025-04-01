@@ -1,0 +1,16 @@
+{
+  "name": "History-Graph",
+  "description": "Extension which tracks the user history to plot a web journey graph",
+  "author": "adityaraj7320@gmail.com",
+  "background": {
+    "service_worker": "service_worker.js",
+    "type": "module"
+  },
+  "version": "0.1",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "./index.html",
+    "default_icon": "./icon.png"
+  },
+  "host_permissions": ["https://*/*", "http://*/*"]
+}
