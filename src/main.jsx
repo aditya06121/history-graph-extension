@@ -1,10 +1,17 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import { HashRouter, Routes, Route } from "react-router-dom";
+import PopUp from "./components/PopUp.jsx";
+import GraphPage from "./components/GraphPage.jsx";
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
-  </StrictMode>,
-)
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<PopUp />} />
+        <Route path="/graph" element={<GraphPage />} />
+      </Routes>
+    </HashRouter>
+  </StrictMode>
+);
