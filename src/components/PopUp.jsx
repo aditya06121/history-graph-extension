@@ -18,7 +18,7 @@ const PopUp = () => {
   return (
     <div className="bg-white shadow-lg p-6 w-96 text-center border border-gray-200">
       <h1 className="text-3xl font-extrabold text-indigo-600 mb-4">
-        refresh dammit!
+        History Graph
       </h1>
       <p className="text-gray-600 text-md mb-6 leading-relaxed">
         This extension generates a graph showing the websites you have visited

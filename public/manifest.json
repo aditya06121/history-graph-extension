@@ -12,5 +12,27 @@
     "default_popup": "./index.html",
     "default_icon": "./icon.png"
   },
-  "host_permissions": ["https://*/*", "http://*/*"]
+  "host_permissions": ["https://*/*", "http://*/*"],
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "history",
+    "webNavigation",
+    "storage"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "commands": {
+    "showGraph": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Shows the generated graph."
+    }
+  }
 }
