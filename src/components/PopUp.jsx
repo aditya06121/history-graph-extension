@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 
 const PopUp = () => {
-  const [isTracking, setIsTracking] = useState(false);
+  const [isTracking, setIsTracking] = useState(true);
+
   const handleCheckboxChange = () => {
-    setIsTracking(!isTracking);
+    const newTrackingState = !isTracking;
+    setIsTracking(newTrackingState);
+
+    // Send the updated state to the service worker
+    chrome.runtime.sendMessage({ tracking: newTrackingState });
   };
 
   const handleShowGraph = () => {
-    const newTab = window.open("../../graph.html", "_blank");
-    if (!newTab) {
-      alert(
-        "Failed to open the graph page. Please check your browser settings."
-      );
-    }
+    //for communicating with service worker
   };
 
   return (
@@ -23,6 +23,9 @@ const PopUp = () => {
       <p className="text-gray-600 text-md mb-6 leading-relaxed">
         This extension generates a graph showing the websites you have visited
         in this active session. Track and visualize your browsing habits!
+      </p>
+      <p className="text-gray-600 text-md mb-6 leading-relaxed">
+        refresh the page to start tracking!
       </p>
 
       <div className="flex items-center space-x-3 mb-5 justify-center">
