@@ -17,8 +17,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         obj = {
           title: currentTitle,
           url: tab.url,
+          tabId: tabId,
+          openerTabId: tab.openerTabId,
         };
-        // console.log(obj);
+        console.log(obj);
         tabName = currentTitle;
       }
     }
