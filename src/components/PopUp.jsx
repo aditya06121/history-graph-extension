@@ -12,7 +12,12 @@ const PopUp = () => {
   };
 
   const handleShowGraph = () => {
-    //for communicating with service worker
+    const newTab = window.open("../../graph.html", "_blank");
+    if (!newTab) {
+      alert(
+        "Failed to open the graph page. Please check your browser settings."
+      );
+    }
   };
 
   return (

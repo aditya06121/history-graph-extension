@@ -1,18 +1,9 @@
+// global variables
 let tracking = true;
+let obj = {};
+let tabName = "";
 
-chrome.webNavigation.onCompleted.addListener((details) => {
-  if (tracking) {
-    if (details.frameId === 0) {
-      // Only for the main frame
-      const url = details.url;
-      console.log(`URL: ${url}`);
-      // No need to notify about tracking info as per adi's instructions
-    }
-  }
-});
-
-let tabName = ""; // Initialize tabName outside the listener
-
+// tracks the names of the tabs and stuff on tab update if tracking is turned on in popup.js
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tracking) {
     if (changeInfo.title) {
@@ -23,7 +14,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
       // Update tabName only if it's new and not URL-like
       if (!isURLLike && currentTitle !== tabName) {
-        console.log(currentTitle);
+        obj = {
+          title: currentTitle,
+          url: tab.url,
+        };
+        // console.log(obj);
         tabName = currentTitle;
       }
     }
@@ -31,7 +26,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 //listen for messages from the popup
-chrome.runtime.onMessage.addListener((message, sender) => {
+chrome.runtime.onMessage.addListener((message) => {
   if (message.tracking !== undefined) {
     if (message.tracking) {
       tracking = true;
