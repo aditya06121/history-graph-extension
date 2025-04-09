@@ -13,7 +13,15 @@
     "default_icon": "./icon.png"
   },
   "host_permissions": ["https://*/*", "http://*/*"],
-  "permissions": ["scripting", "activeTab", "history", "webNavigation", "tabs"],
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "history",
+    "webNavigation",
+    "tabs",
+    "windows",
+    "storage"
+  ],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
