@@ -3,6 +3,14 @@ let tracking = true;
 let tabName = "";
 let windowLogs = {};
 
+chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.local.get(["windowLogs"], (result) => {
+    if (result.windowLogs) {
+      windowLogs = result.windowLogs;
+    }
+  });
+});
+
 // tracks the names of the tabs and stuff on tab update if tracking is turned on in popup.js
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tracking) {
@@ -27,6 +35,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         });
         console.log(windowLogs);
         tabName = currentTitle;
+
+        chrome.storage.local.set({ windowLogs: windowLogs });
       }
     }
   }
@@ -46,9 +56,11 @@ chrome.runtime.onMessage.addListener((message) => {
 chrome.windows.onCreated.addListener((window) => {
   if (!windowLogs[window.id]) {
     windowLogs[window.id] = [];
+    chrome.storage.local.set({ windowLogs: windowLogs });
   }
 });
 
 chrome.windows.onRemoved.addListener((windowId) => {
   delete windowLogs[windowId];
+  chrome.storage.local.set({ windowLogs: windowLogs });
 });
