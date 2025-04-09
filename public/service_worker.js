@@ -23,9 +23,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
       // Check if the title includes common URL indicators
       const isURLLike = currentTitle.includes("/");
+      const isURLLike2 =
+        tab.url.includes("http:") || tab.url.includes("https:");
 
       // Update tabName only if it's new and not URL-like
-      if (!isURLLike && currentTitle !== tabName) {
+      if (!isURLLike && currentTitle !== tabName && isURLLike2) {
         //simple but smart way if checking the name of prev tab and generating the tree.
         windowLogs[windowId].push({
           title: currentTitle,
@@ -33,7 +35,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           tabId: tabId,
           openerTabId: tab.openerTabId,
         });
-        console.log(windowLogs);
         tabName = currentTitle;
 
         chrome.storage.local.set({ windowLogs: windowLogs });
