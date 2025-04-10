@@ -36,16 +36,11 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           openerTabId: tab.openerTabId,
         });
         tabNames[tabId] = currentTitle; // Update the tabName for this tabId
-
+        console.log(windowLogs[windowId]);
         chrome.storage.local.set({ windowLogs: windowLogs });
       }
     }
   }
-});
-
-// Clean up tabNames when a tab is removed
-chrome.tabs.onRemoved.addListener((tabId) => {
-  delete tabNames[tabId];
 });
 
 //listen for messages from the popup for tick conformation

@@ -2,14 +2,11 @@ import React, { useState, useEffect } from "react";
 import "../index.css";
 
 function GraphPage() {
-  const [windowLogs, setWindowLogs] = useState(null); // State to hold the logs for the current window
-  // Fetch windowLogs from chrome.storage.local when the component mounts
+  const [windowLogs, setWindowLogs] = useState(null);
   useEffect(() => {
-    let currentWindowId = null; // Declare a variable to store the current window ID
-
-    // Get the current window
-    chrome.windows.getCurrent({ populate: true }, (currentWindow) => {
-      currentWindowId = currentWindow.id; // Assign the current window ID to the variable
+    let currentWindowId = null;
+    chrome.windows.getCurrent((currentWindow) => {
+      currentWindowId = currentWindow.id;
 
       // Retrieve all window logs from chrome storage
       chrome.storage.local.get(["windowLogs"], (result) => {
@@ -43,7 +40,7 @@ function GraphPage() {
     return () => {
       chrome.storage.onChanged.removeListener(storageChangeListener);
     };
-  }, []); // Empty dependency array means it only runs on mount and unmount
+  }, []);
 
   // Render logs for the current window
   const renderLogs = () => {
@@ -57,18 +54,17 @@ function GraphPage() {
 
     return windowLogs.map((log, index) => (
       <div key={index} className="tab-item">
-        <strong>{log.title}</strong> (URL:{" "}
-        <a href={log.url} target="_blank" rel="noopener noreferrer">
-          {log.url}
-        </a>
-        )
+        <strong>{log.title}</strong> <italic>tabID:{log.tabId}</italic>
+        <br />
+        <italic>Opener tab id:{log.openerTabId}</italic>
+        <br />
       </div>
     ));
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <h1 className="text-4xl font-bold text-gray-800 text-center pt-8">
+    <div className="min-h-screen bg-gray-50">
+      <h1 className="text-5xl font-semibold text-gray-900 text-center pt-16 pb-4">
         Browsing Graph
       </h1>
 
