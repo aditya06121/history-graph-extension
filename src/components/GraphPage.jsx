@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../index.css";
+import Graph from "./Graph.jsx";
 
 function GraphPage() {
   const [windowLogs, setWindowLogs] = useState(null);
@@ -42,37 +43,22 @@ function GraphPage() {
     };
   }, []);
 
-  // Render logs for the current window
-  const renderLogs = () => {
-    if (!windowLogs) {
-      return <div>Loading...</div>;
-    }
-
-    if (windowLogs.length === 0) {
-      return <div>No logs available for the current window.</div>;
-    }
-
-    return windowLogs.map((log, index) => (
-      <div key={index} className="tab-item">
-        <strong>{log.title}</strong> <italic>tabID:{log.tabId}</italic>
-        <br />
-        <italic>Opener tab id:{log.openerTabId}</italic>
-        <br />
-      </div>
-    ));
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <h1 className="text-5xl font-semibold text-gray-900 text-center pt-16 pb-4">
-        Browsing Graph
-      </h1>
+    <>
+      {/* Header with minimalist gray gradient */}
+      <header className="bg-gradient-to-r from-gray-100 to-gray-600 shadow-sm">
+        <div className="max-w-3xl mx-auto px-1.5 py-2">
+          <h1 className="text-5xl font-extrabold text-gray-800 text-center tracking-tight">
+            Browsing Graph
+          </h1>
+          <p className="mt-2 text-center text-lg text-gray-600">
+            Visualize your browsing data beautifully ✨
+          </p>
+        </div>
+      </header>
 
-      {/* Display logs for the current window */}
-      <div className="mt-8 px-4">
-        <div className="mt-4">{renderLogs()}</div>
-      </div>
-    </div>
+      <Graph logs={windowLogs} />
+    </>
   );
 }
 

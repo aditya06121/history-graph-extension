@@ -36,7 +36,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
           openerTabId: tab.openerTabId,
         });
         tabNames[tabId] = currentTitle; // Update the tabName for this tabId
-        console.log(windowLogs[windowId]);
         chrome.storage.local.set({ windowLogs: windowLogs });
       }
     }
