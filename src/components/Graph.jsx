@@ -17,8 +17,16 @@ const initialNodes = [
 ];
 const initialEdges = [{ id: "e1-2", source: "1", target: "2" }];
 
-export default function Graph(props) {
-  console.log(props);
+export default function Graph({ logs }) {
+  if (!logs) {
+    return <p>Loading logs...</p>;
+  }
+  if (logs.length === 0) {
+    return <p>No logs found.</p>;
+  }
+  const lastValue = Object.values(logs).at(-1);
+  console.log(lastValue);
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
@@ -29,14 +37,8 @@ export default function Graph(props) {
 
   return (
     <div style={{ width: "100vw", height: "85vh" }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-      >
-        <Controls />
+      <ReactFlow nodes={nodes} edges={edges}>
+        <Controls showInteractive={false} />
         <MiniMap />
         <Background variant="dots" gap={12} size={1} />
       </ReactFlow>
