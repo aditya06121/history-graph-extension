@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "../index.css";
 import Graph from "./Graph.jsx";
+import edgeCreator from "../edgeCreator.js";
 
 function GraphPage() {
   const [windowLogs, setWindowLogs] = useState(null);
@@ -42,6 +43,7 @@ function GraphPage() {
       chrome.storage.onChanged.removeListener(storageChangeListener);
     };
   }, []);
+  const logs = edgeCreator(windowLogs);
 
   return (
     <>
@@ -59,7 +61,7 @@ function GraphPage() {
         </header>
 
         <main className="flex-1 overflow-hidden">
-          <Graph logs={windowLogs} />
+          <Graph logs={logs} />
         </main>
 
         {/* Footer*/}

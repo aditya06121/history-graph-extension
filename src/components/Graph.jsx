@@ -1,25 +1,43 @@
-import React, { useCallback } from "react";
-import {
-  ReactFlow,
-  MiniMap,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  addEdge,
-} from "@xyflow/react";
+import React from "react";
+import dagre from "dagre";
+import { ReactFlow, MiniMap, Controls, Background } from "@xyflow/react";
 
 import "@xyflow/react/dist/style.css";
 
-const initialNodes = [
-  { id: "1", position: { x: 0, y: 0 }, data: { label: "1" } },
-  { id: "2", position: { x: 0, y: 100 }, data: { label: "2" } },
-];
-const initialEdges = [{ id: "e1-2", source: "1", target: "2" }];
+//dagre setup
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+const nodeWidth = 200;
+const nodeHeight = 50;
 
-export default function Graph({ logs }) {
+// Layout function
+const getLayoutedElements = (nodes, edges, direction = "LR") => {
+  const isHorizontal = direction === "LR";
+  dagreGraph.setGraph({ rankdir: direction });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+  nodes.forEach((node) => {
+    const { x, y } = dagreGraph.node(node.id);
+    node.position = {
+      x: x - nodeWidth / 2,
+      y: y - nodeHeight / 2,
+    };
+  });
+
+  return { nodes, edges };
+};
+
+function Graph({ logs }) {
   if (!logs) {
-    return <p>Loading logs...</p>;
+    return <p className="text-lg font-medium">Loading logs...</p>;
   }
   if (logs.length === 0) {
     return (
@@ -41,29 +59,16 @@ export default function Graph({ logs }) {
       </div>
     );
   }
-  const lastValue = Object.values(logs).at(-1);
-  console.log(lastValue); //the object with the most recent tab
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
-
+  console.log(logs);
   return (
     <div style={{ width: "100vw", height: "85vh" }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-      >
-        <Controls />
+      {/* <ReactFlow nodes={nodes} edges={edges} fitView>
+        <Controls orientation="horizontal" showInteractive={false} />
         <MiniMap />
         <Background variant="dots" gap={12} size={1} />
-      </ReactFlow>
+      </ReactFlow> */}
     </div>
   );
 }
+
+export default Graph;
