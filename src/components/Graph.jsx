@@ -1,73 +1,106 @@
-import React from "react";
+import React, { useMemo } from "react";
 import dagre from "dagre";
-import { ReactFlow, MiniMap, Controls, Background } from "@xyflow/react";
-
+import { ReactFlow, MiniMap, Controls, Background, MarkerType } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-//dagre setup
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-const nodeWidth = 200;
-const nodeHeight = 50;
-
-// Layout function
-const getLayoutedElements = (nodes, edges, direction = "LR") => {
-  const isHorizontal = direction === "LR";
-  dagreGraph.setGraph({ rankdir: direction });
-
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
-  });
-
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
-
-  dagre.layout(dagreGraph);
-  nodes.forEach((node) => {
-    const { x, y } = dagreGraph.node(node.id);
-    node.position = {
-      x: x - nodeWidth / 2,
-      y: y - nodeHeight / 2,
-    };
-  });
-
-  return { nodes, edges };
+// Custom node styles
+const nodeStyle = {
+  padding: 10,
+  borderRadius: 5,
+  border: '1px solid #ddd',
+  background: '#fff',
+  width: 260,
 };
 
-function Graph({ logs }) {
-  if (!logs) {
-    return <p className="text-lg font-medium">Loading logs...</p>;
+const nodeWidth = 260;
+const nodeHeight = 90;
+
+function Graph({ graphData }) {
+  const { nodes: graphNodes, edges: graphEdges } = graphData || { nodes: {}, edges: [] };
+
+  const nodes = useMemo(() =>
+    Object.entries(graphNodes).map(([url, node]) => {
+      const title = node.title || (() => {
+        try { return new URL(url).hostname; } catch { return url; }
+      })();
+      return ({
+        id: url,
+        data: {
+          label: (
+            <div style={{ fontSize: '12px' }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{title}</div>
+              <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <a href={url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>
+                  {url}
+                </a>
+              </div>
+              <div style={{ fontSize: '10px', color: '#666' }}>Visits: {node.visitCount}</div>
+            </div>
+          ),
+        },
+        position: { x: 0, y: 0 },
+        style: nodeStyle,
+      });
+    }), [graphNodes]);
+
+  const edges = useMemo(() => {
+    const nodeIds = new Set(Object.keys(graphNodes || {}));
+    return (graphEdges || [])
+      .map((edge, index) => ({
+        id: `edge-${index}`,
+        source: edge.sourceUrl || edge.from,
+        target: edge.targetUrl || edge.to,
+        animated: true,
+        style: { stroke: '#999' },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+      }))
+      .filter((e) => e.source && e.target && nodeIds.has(e.source) && nodeIds.has(e.target));
+  }, [graphEdges, graphNodes]);
+
+  const layoutedNodes = useMemo(() => {
+    if (!nodes.length) return [];
+
+    // Build a fresh dagre graph each time to avoid stale nodes/edges
+    const g = new dagre.graphlib.Graph();
+    g.setDefaultEdgeLabel(() => ({}));
+    g.setGraph({ rankdir: 'LR', nodesep: 50, ranksep: 80 });
+
+    nodes.forEach(node => {
+      g.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    });
+
+    edges.forEach(edge => {
+      if (edge.source && edge.target) g.setEdge(edge.source, edge.target);
+    });
+
+    dagre.layout(g);
+
+    return nodes.map(node => {
+      const nodeWithPos = g.node(node.id) || { x: 0, y: 0 };
+      return {
+        ...node,
+        position: {
+          x: nodeWithPos.x - nodeWidth / 2,
+          y: nodeWithPos.y - nodeHeight / 2,
+        },
+      };
+    });
+  }, [nodes, edges]);
+
+  if (!graphData) {
+    return <div>Loading...</div>;
   }
-  if (logs.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 text-center text-gray-500">
-        <svg
-          className="w-12 h-12 mb-4 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M9.75 9.75h.008v.008H9.75V9.75zm4.5 0h.008v.008h-.008V9.75zm-6.364 6.364a9 9 0 1112.728-12.728 9 9 0 01-12.728 12.728z"
-          />
-        </svg>
-        <p className="text-lg font-medium">No logs found</p>
-      </div>
-    );
-  }
-  console.log(logs);
+
   return (
-    <div style={{ width: "100vw", height: "85vh" }}>
-      {/* <ReactFlow nodes={nodes} edges={edges} fitView>
-        <Controls orientation="horizontal" showInteractive={false} />
-        <MiniMap />
-        <Background variant="dots" gap={12} size={1} />
-      </ReactFlow> */}
-    </div>
+    <ReactFlow
+      nodes={layoutedNodes}
+      edges={edges}
+      fitView
+    >
+      <Background />
+      <Controls />
+      <MiniMap />
+    </ReactFlow>
   );
 }
 

@@ -1,67 +1,216 @@
-// global variables
-let tracking = true;
-let tabNames = {}; // Maps tabId to tabName
-let windowLogs = {};
+// MV3 service worker
 
-chrome.runtime.onStartup.addListener(() => {
-  chrome.storage.local.get(["windowLogs"], (result) => {
-    if (result.windowLogs) {
-      windowLogs = result.windowLogs;
+// In-memory last URL and title per tab for same-tab edges
+const lastUrlByTab = {};
+const lastTitleByTab = {};
+
+// Initialize a window graph if missing
+function initWindowGraph(windowId) {
+  chrome.storage.local.get([`graph_${windowId}`], (res) => {
+    if (!res[`graph_${windowId}`]) {
+      const graph = { windowId, created: Date.now(), nodes: {}, edges: [] };
+      chrome.storage.local.set({ [`graph_${windowId}`]: graph }, () => {
+        console.log(`[STORAGE] init graph for window ${windowId}`);
+      });
+    } else {
+      console.log(`[STORAGE] graph exists for window ${windowId}`);
     }
   });
-});
+}
 
-// tracks the names of the tabs and stuff on tab update if tracking is turned on in popup.js
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (tracking) {
-    if (changeInfo.title) {
-      const currentTitle = tab.title;
-      const windowId = tab.windowId;
-      if (!windowLogs[windowId]) {
-        windowLogs[windowId] = [];
+// Save node/edge into per-window storage
+function saveEdge(windowId, edge) {
+  chrome.storage.local.get([`graph_${windowId}`], (res) => {
+    let graph = res[`graph_${windowId}`] || {
+      windowId,
+      created: Date.now(),
+      nodes: {},
+      edges: [],
+    };
+    const ts = Date.now();
+
+    // Ensure nodes exist keyed by URL and update title if provided
+    const ensureNode = (url, title) => {
+      if (!url) return;
+      if (!graph.nodes[url]) {
+        graph.nodes[url] = {
+          url,
+          title: title || null,
+          createdAt: ts,
+          lastVisited: ts,
+          visitCount: 1,
+        };
+        console.log(`[NODE] create ${url}`);
+      } else {
+        graph.nodes[url].lastVisited = ts;
+        graph.nodes[url].visitCount = (graph.nodes[url].visitCount || 0) + 1;
+        if (title && graph.nodes[url].title !== title) {
+          graph.nodes[url].title = title;
+        }
+        console.log(
+          `[NODE] update ${url} → visits ${graph.nodes[url].visitCount}`
+        );
       }
+    };
 
-      // Check if the title includes common URL indicators
-      const isURLLike = currentTitle.includes("/");
-      const isURLLike2 =
-        tab.url.includes("http:") || tab.url.includes("https:");
+    ensureNode(edge.sourceUrl, edge.sourceTitle);
+    ensureNode(edge.targetUrl, edge.targetTitle);
+    graph.edges.push({ ...edge, timestamp: ts });
+    chrome.storage.local.set({ [`graph_${windowId}`]: graph }, () => {
+      console.log(
+        `[EDGE] ${edge.sameTab ? "same-tab" : "inter-tab"} ${
+          edge.sourceUrl || "∅"
+        } → ${edge.targetUrl} (${edge.type || "unknown"})`
+      );
+      console.log(
+        `[STORAGE] window ${windowId}: nodes ${
+          Object.keys(graph.nodes).length
+        }, edges ${graph.edges.length}`
+      );
+    });
+  });
+}
 
-      // Update tabName only if it's new and not URL-like
-      if (!isURLLike && currentTitle !== tabNames[tabId] && isURLLike2) {
-        // Simple but smart way of checking the name of the previous tab and generating the tree.
-        windowLogs[windowId].push({
-          title: currentTitle,
-          url: tab.url,
-          tabId: tabId,
-          openerTabId: tab.openerTabId,
-        });
-        tabNames[tabId] = currentTitle; // Update the tabName for this tabId
-        chrome.storage.local.set({ windowLogs: windowLogs });
-        console.log(windowLogs);
-      }
-    }
-  }
-});
+// Helper: update a node's title when we learn it later
+function updateNodeTitle(windowId, url, title) {
+  if (!url || !title) return;
+  chrome.storage.local.get([`graph_${windowId}`], (res) => {
+    const graph = res[`graph_${windowId}`];
+    if (!graph) return;
+    if (!graph.nodes[url]) return;
+    if (graph.nodes[url].title === title) return;
+    graph.nodes[url].title = title;
+    chrome.storage.local.set({ [`graph_${windowId}`]: graph });
+  });
+}
 
-//listen for messages from the popup for tick conformation
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.tracking !== undefined) {
-    if (message.tracking) {
-      tracking = true;
-    } else {
-      tracking = false;
-    }
-  }
-});
-
-chrome.windows.onCreated.addListener((window) => {
-  if (!windowLogs[window.id]) {
-    windowLogs[window.id] = [];
-    chrome.storage.local.set({ windowLogs: windowLogs });
-  }
+// Window lifecycle
+chrome.windows.onCreated.addListener((win) => {
+  console.log(`[WINDOW] created ${win.id}`);
+  initWindowGraph(win.id);
 });
 
 chrome.windows.onRemoved.addListener((windowId) => {
-  delete windowLogs[windowId];
-  chrome.storage.local.set({ windowLogs: windowLogs });
+  console.log(`[WINDOW] removed ${windowId}`);
+  // Optional: keep graph for later; comment out next line if you want persistence across sessions
+  // chrome.storage.local.remove([`graph_${windowId}`]);
+});
+
+// Tab created: inter-tab edges via openerTabId
+chrome.tabs.onCreated.addListener((tab) => {
+  console.log(
+    `[TAB] created id=${tab.id} win=${tab.windowId} opener=${
+      tab.openerTabId ?? "none"
+    }`
+  );
+  initWindowGraph(tab.windowId);
+  if (tab.openerTabId) {
+    chrome.tabs.get(tab.openerTabId, (opener) => {
+      if (chrome.runtime.lastError) {
+        console.warn(
+          `[TAB] opener fetch error: ${chrome.runtime.lastError.message}`
+        );
+        return;
+      }
+      const sourceUrl = opener.url || null;
+      const targetUrlRaw = tab.pendingUrl || tab.url || "";
+      // Only create inter-tab edge when we know the destination URL (http/https)
+      if (!/^https?:\/\//i.test(targetUrlRaw)) return;
+      const targetUrl = targetUrlRaw;
+      const sourceTitle = opener.title || null;
+      const targetTitle = tab.title || null;
+      saveEdge(tab.windowId, {
+        sourceUrl,
+        targetUrl,
+        sourceTitle,
+        targetTitle,
+        sourceTabId: tab.openerTabId,
+        targetTabId: tab.id,
+        type: "link",
+        sameTab: false,
+      });
+    });
+  }
+});
+
+// Main-frame navigations: same-tab edges with transition metadata
+chrome.webNavigation.onCommitted.addListener((details) => {
+  if (details.frameId !== 0) return; // main frame only
+  chrome.tabs.get(details.tabId, (tab) => {
+    if (chrome.runtime.lastError) {
+      console.warn(`[NAV] tabs.get error: ${chrome.runtime.lastError.message}`);
+      return;
+    }
+    initWindowGraph(tab.windowId);
+    const targetUrl = details.url;
+    const targetTitle = tab.title || null;
+    const sourceUrl = lastUrlByTab[details.tabId] || null;
+    const sourceTitle = lastTitleByTab[details.tabId] || null;
+    const sameTab = true;
+
+    // Create edge only if a real change occurred
+    if (sourceUrl && sourceUrl !== targetUrl) {
+      saveEdge(tab.windowId, {
+        sourceUrl,
+        targetUrl,
+        sourceTitle,
+        targetTitle,
+        sourceTabId: details.tabId,
+        targetTabId: details.tabId,
+        type: details.transitionType, // e.g., "typed", "link", "reload"
+        transitionQualifiers: details.transitionQualifiers || [],
+        sameTab,
+      });
+    } else {
+      // No previous URL; record node touch
+      saveEdge(tab.windowId, {
+        sourceUrl: null,
+        targetUrl,
+        sourceTitle: null,
+        targetTitle,
+        sourceTabId: null,
+        targetTabId: details.tabId,
+        type: details.transitionType,
+        transitionQualifiers: details.transitionQualifiers || [],
+        sameTab: false,
+      });
+    }
+
+    // Update last URL/title for this tab
+    lastUrlByTab[details.tabId] = targetUrl;
+    lastTitleByTab[details.tabId] = targetTitle || null;
+
+    // Ensure node title is up to date
+    updateNodeTitle(tab.windowId, targetUrl, targetTitle);
+
+    console.log(
+      `[NAV] tab ${details.tabId} ${sourceUrl || "∅"} → ${targetUrl} (${details.transitionType})`
+    );
+  });
+});
+
+// Update node titles when the tab title becomes available/changes
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (!changeInfo.title) return;
+  if (!tab || !tab.url) return;
+  lastTitleByTab[tabId] = changeInfo.title;
+  updateNodeTitle(tab.windowId, tab.url, changeInfo.title);
+});
+
+// Optional: initialize existing windows/tabs on startup
+chrome.runtime.onStartup.addListener(() => {
+  console.log("[STARTUP] initializing graphs for current windows");
+  chrome.windows.getAll({}, (wins) => wins.forEach((w) => initWindowGraph(w.id)));
+});
+
+// Optional: toggle tracking via messages (hook your popup)
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.action === "getGraph" && msg.windowId) {
+    chrome.storage.local.get([`graph_${msg.windowId}`], (res) => {
+      sendResponse(res[`graph_${msg.windowId}`] || null);
+    });
+    return true;
+  }
+});
+  }
 });
