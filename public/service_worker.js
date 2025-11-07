@@ -4,6 +4,11 @@
 const lastUrlByTab = {};
 const lastTitleByTab = {};
 
+// Only track real webpages (http/https)
+function isTrackableUrl(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url);
+}
+
 // Initialize a window graph if missing
 function initWindowGraph(windowId) {
   chrome.storage.local.get([`graph_${windowId}`], (res) => {
@@ -29,9 +34,16 @@ function saveEdge(windowId, edge) {
     };
     const ts = Date.now();
 
+    // Do not log edges to non-trackable destinations
+    if (!isTrackableUrl(edge.targetUrl)) return;
+    // If source is non-trackable, treat it as null (start node)
+    if (edge.sourceUrl && !isTrackableUrl(edge.sourceUrl)) {
+      edge = { ...edge, sourceUrl: null, sourceTitle: null };
+    }
+
     // Ensure nodes exist keyed by URL and update title if provided
     const ensureNode = (url, title) => {
-      if (!url) return;
+      if (!url || !isTrackableUrl(url)) return;
       if (!graph.nodes[url]) {
         graph.nodes[url] = {
           url,
@@ -112,10 +124,10 @@ chrome.tabs.onCreated.addListener((tab) => {
         );
         return;
       }
-      const sourceUrl = opener.url || null;
+      const sourceUrl = isTrackableUrl(opener.url) ? opener.url : null;
       const targetUrlRaw = tab.pendingUrl || tab.url || "";
       // Only create inter-tab edge when we know the destination URL (http/https)
-      if (!/^https?:\/\//i.test(targetUrlRaw)) return;
+      if (!isTrackableUrl(targetUrlRaw)) return;
       const targetUrl = targetUrlRaw;
       const sourceTitle = opener.title || null;
       const targetTitle = tab.title || null;
@@ -136,6 +148,8 @@ chrome.tabs.onCreated.addListener((tab) => {
 // Main-frame navigations: same-tab edges with transition metadata
 chrome.webNavigation.onCommitted.addListener((details) => {
   if (details.frameId !== 0) return; // main frame only
+  if (!isTrackableUrl(details.url)) return; // ignore about:blank, chrome://, extension pages, etc.
+
   chrome.tabs.get(details.tabId, (tab) => {
     if (chrome.runtime.lastError) {
       console.warn(`[NAV] tabs.get error: ${chrome.runtime.lastError.message}`);
@@ -176,7 +190,7 @@ chrome.webNavigation.onCommitted.addListener((details) => {
       });
     }
 
-    // Update last URL/title for this tab
+    // Update last URL/title for this tab (only for trackable urls)
     lastUrlByTab[details.tabId] = targetUrl;
     lastTitleByTab[details.tabId] = targetTitle || null;
 
@@ -192,7 +206,7 @@ chrome.webNavigation.onCommitted.addListener((details) => {
 // Update node titles when the tab title becomes available/changes
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (!changeInfo.title) return;
-  if (!tab || !tab.url) return;
+  if (!tab || !tab.url || !isTrackableUrl(tab.url)) return;
   lastTitleByTab[tabId] = changeInfo.title;
   updateNodeTitle(tab.windowId, tab.url, changeInfo.title);
 });
@@ -210,7 +224,5 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       sendResponse(res[`graph_${msg.windowId}`] || null);
     });
     return true;
-  }
-});
   }
 });

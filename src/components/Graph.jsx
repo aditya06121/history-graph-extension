@@ -19,32 +19,37 @@ function Graph({ graphData }) {
   const { nodes: graphNodes, edges: graphEdges } = graphData || { nodes: {}, edges: [] };
 
   const nodes = useMemo(() =>
-    Object.entries(graphNodes).map(([url, node]) => {
-      const title = node.title || (() => {
-        try { return new URL(url).hostname; } catch { return url; }
-      })();
-      return ({
-        id: url,
-        data: {
-          label: (
-            <div style={{ fontSize: '12px' }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{title}</div>
-              <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                <a href={url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>
-                  {url}
-                </a>
+    Object.entries(graphNodes)
+      .filter(([url]) => /^https?:\/\//i.test(url))
+      .map(([url, node]) => {
+        const title = node.title || (() => {
+          try { return new URL(url).hostname; } catch { return url; }
+        })();
+        const favicon = `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(url)}&sz=64`;
+        return ({
+          id: url,
+          data: {
+            label: (
+              <div style={{ fontSize: '12px' }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '4px' }}>
+                  <img src={favicon} alt="" width={16} height={16} style={{ borderRadius: 3 }} />
+                  <div style={{ fontWeight: 'bold' }}>{title}</div>
+                </div>
+                <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <a href={url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>
+                    {url}
+                  </a>
+                </div>
               </div>
-              <div style={{ fontSize: '10px', color: '#666' }}>Visits: {node.visitCount}</div>
-            </div>
-          ),
-        },
-        position: { x: 0, y: 0 },
-        style: nodeStyle,
-      });
-    }), [graphNodes]);
+            ),
+          },
+          position: { x: 0, y: 0 },
+          style: nodeStyle,
+        });
+      }), [graphNodes]);
 
   const edges = useMemo(() => {
-    const nodeIds = new Set(Object.keys(graphNodes || {}));
+    const nodeIds = new Set((Object.keys(graphNodes || {})).filter((u) => /^https?:\/\//i.test(u)));
     return (graphEdges || [])
       .map((edge, index) => ({
         id: `edge-${index}`,

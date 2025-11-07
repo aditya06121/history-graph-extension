@@ -48,9 +48,6 @@ function GraphPage() {
           <h1 className="text-5xl font-extrabold text-gray-800 text-center tracking-tight">
             Browsing Graph
           </h1>
-          <p className="mt-2 text-center text-lg text-gray-600">
-            Visualize your browsing data beautifully ✨
-          </p>
         </div>
       </header>
 
